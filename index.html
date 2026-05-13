@@ -21,9 +21,17 @@ body{background:#06060b;color:#c8c0a8;font-family:'Inter',sans-serif;overflow:hi
 .land:hover{stroke:rgba(240,192,96,0.5);stroke-width:0.8}
 .clabel{fill:#f0e8d0;font-family:'Cormorant Garamond',serif;font-size:13px;font-weight:700;pointer-events:none;text-anchor:middle}
 .clabel-bg{fill:rgba(6,6,10,0.6);stroke:rgba(200,192,160,0.06);stroke-width:0.3;pointer-events:none;rx:3}
-.river{fill:none;stroke:rgba(100,160,200,0.08);stroke-width:0.6;stroke-linecap:round;opacity:0.6}
 .eq{fill:none;stroke:rgba(200,192,160,0.03);stroke-width:0.4;stroke-dasharray:4,6}
 .grat{fill:none;stroke:rgba(200,192,160,0.012);stroke-width:0.3}
+
+/* HRE: specific styling for the confederation */
+.hre{fill-opacity:0.35 !important}
+.hre-border{fill:none;stroke:#7a6620;stroke-width:1.2;stroke-dasharray:6,3;opacity:0.5;pointer-events:none}
+.hre-label{fill:#7a6620;font-family:'Cormorant Garamond',serif;font-size:9px;font-style:italic;pointer-events:none;text-anchor:middle;opacity:0.7}
+
+/* Territory labels background */
+.hre-bg{fill:rgba(6,6,10,0.5);stroke:rgba(122,102,32,0.2);stroke-width:0.3;pointer-events:none;rx:3}
+
 .cd{fill:#e8d8a0;stroke:rgba(0,0,0,0.4);stroke-width:0.4}
 .cl{fill:rgba(232,216,160,0.5);font-family:'Cormorant Garamond',serif;font-size:7px;font-style:italic;pointer-events:none;text-shadow:0 0 6px rgba(0,0,0,0.8)}
 .mb{position:absolute;top:12px;left:12px;display:flex;gap:2px}
@@ -32,6 +40,14 @@ body{background:#06060b;color:#c8c0a8;font-family:'Inter',sans-serif;overflow:hi
 .mb button.on{color:#d4b870;border-color:rgba(212,184,112,0.2);background:rgba(212,184,112,0.06)}
 #sel-info{position:absolute;top:48px;left:12px;display:none;font-size:11px;font-family:'Cormorant Garamond',serif;color:#d4b870;background:rgba(6,6,10,0.75);padding:4px 12px;border-radius:2px;backdrop-filter:blur(4px);border:1px solid rgba(212,184,112,0.1)}
 #sel-info.show{display:block}
+
+/* Legend */
+#legend{position:absolute;bottom:8px;left:12px;padding:6px 10px;border-radius:2px;background:rgba(6,6,10,0.7);border:1px solid rgba(200,192,160,0.04);backdrop-filter:blur(4px);display:none;font-size:8px}
+#legend.show{display:flex;flex-direction:column;gap:2px}
+#legend .leg-item{display:flex;align-items:center;gap:4px;color:rgba(200,192,160,0.5)}
+#legend .leg-swatch{width:8px;height:8px;border-radius:1px;border:1px solid rgba(200,192,160,0.06)}
+#legend .leg-dot{width:3px;height:3px;border-radius:50%;background:#e8d8a0;opacity:0.5}
+#legend .leg-dot-label{font-size:7px;color:rgba(200,192,160,0.35)}
 
 /* SIDEBAR */
 #eb{background:linear-gradient(180deg,#09090f 0%,#0b0b16 100%);border-left:1px solid rgba(200,192,160,0.04);display:flex;flex-direction:column;overflow:hidden}
@@ -96,6 +112,7 @@ body{background:#06060b;color:#c8c0a8;font-family:'Inter',sans-serif;overflow:hi
       <button data-mode="population">Population</button>
     </div>
     <div id="sel-info"></div>
+    <div id="legend"></div>
     <svg id="ms"></svg>
   </div>
 
@@ -165,7 +182,7 @@ const F = {
 
 // Historical entity → faction ID mapping
 const ENT = {
-  "Ottoman Empire":"ottoman","Ottoman":"ottoman",
+  "Ottoman Empire":"ottoman","Ottoman":"ottoman","Osmanli Empire":"ottoman",
   "Spain":"spain","Crown of Aragon":"spain","Crown of Castille":"spain",
   "Vice Royalty of New Spain":"spain","Cuba (Spain)":"spain","Hispaniola (Spain)":"spain",
   "France":"france","Kingdom of France":"france",
@@ -173,7 +190,7 @@ const ENT = {
   "Portugal":"portugal","Kingdom of Portugal":"portugal",
   "Holy Roman Empire":"hre",
   "Poland":"poland","Poland-Lithuania":"poland","Poland-Llituania":"poland","Kingdom of Poland":"poland",
-  "Russia":"russia","Tsardom of Muscovy":"russia","Muscovy":"russia","Kingdom of Russia":"russia",
+  "Russia":"russia","Tsardom of Muscovy":"russia","Muscovy":"russia","Kingdom of Russia":"russia","Grand Duchy of Muscovy":"russia",
   "Sweden":"sweden","Kingdom of Sweden":"sweden",
   "Denmark-Norway":"denmark","Denmark":"denmark","Norway":"denmark",
   "Imperial Hungary":"hungary","Hungary":"hungary","Kingdom of Hungary":"hungary",
@@ -185,11 +202,23 @@ const ENT = {
   "Papal States":"papal",
   "Ethiopia":"ethiopia","Ethiopian Empire":"ethiopia",
   "Songhai":"songhai","Songhai Empire":"songhai",
-  "Inca Empire":"inca","Inca":"inca",
-  "Aztec":"neutral","Aztec Triple Alliance":"neutral",
+  "Inca Empire":"inca","Inca":"inca","Tahuantinsuyu":"inca",
+  "Aztec":"aztec","Aztec Triple Alliance":"aztec","Mexica Empire":"aztec",
   "Timurid Emirates":"timurid","Timurid":"timurid",
   "Mingin":"ming",
-  "Prussia":"russia",
+  "Prussia":"russia","Brandenburg":"hre",
+  "Burgundy":"france",
+  "Milan":"hre","Savoy":"hre","Florence":"hre",
+  "Bavaria":"hre","Saxony":"hre","Austria":"hre",
+  "Naples":"spain","Sicily":"spain",
+  "Netherlands":"spain",
+  "Morocco":"neutral",
+  "Japan":"neutral",
+  "Aragon":"spain",
+  "Castile":"spain","Castille":"spain",
+  "Scotland":"england",
+  "Ireland":"england",
+  "Croatia":"hungary",
 };
 
 // Religion map (entity name → religion)
@@ -200,7 +229,7 @@ const REL = {
   "hungary":"catholic","denmark":"catholic","sweden":"catholic",
   "russia":"orthodox","ethiopia":"orthodox",
   "ming":"confucian","moghul":"hindu",
-  "songhai":"animist","inca":"animist","neutral":"animist",
+  "songhai":"animist","inca":"animist","aztec":"animist","neutral":"animist",
 };
 
 const REL_COLORS = {
@@ -209,7 +238,13 @@ const REL_COLORS = {
   animist:"#5a6a4a",
 };
 
-  // Cities with known populations - SIZES FIXED
+const REL_NAMES = {
+  catholic:"Catholic",orthodox:"Orthodox",protestant:"Protestant",
+  muslim:"Muslim",hindu:"Hindu",confucian:"Confucian",
+  animist:"Tribal / Animist",
+};
+
+// Cities with known populations
 const CITIES = [
 {n:"Constantinople",la:41.01,lo:28.98,pop:80000},
 {n:"Paris",la:48.86,lo:2.35,pop:200000},
@@ -239,6 +274,14 @@ const CITIES = [
 {n:"Alexandria",la:31.20,lo:29.92,pop:50000},
 {n:"Genoa",la:44.41,lo:8.93,pop:60000},
 {n:"Seville",la:37.39,lo:-5.99,pop:60000},
+{n:"Mecca",la:21.42,lo:39.83,pop:30000},
+{n:"Samarkand",la:39.65,lo:66.96,pop:50000},
+{n:"Hangzhou",la:30.27,lo:120.15,pop:400000},
+{n:"Kyoto",la:35.00,lo:135.75,pop:200000},
+{n:"Lahore",la:31.55,lo:74.34,pop:100000},
+{n:"Ahmedabad",la:23.03,lo:72.58,pop:100000},
+{n:"Timbuktu",la:16.77,lo:-3.01,pop:50000},
+{n:"Malacca",la:2.19,lo:102.25,pop:50000},
 ];
 
 // Events
@@ -288,7 +331,28 @@ let mapMode = "political";
 let selectedCode = null;
 let filters = {all:true,major:true,war:true,politics:true,discovery:true,culture:true,religion:true};
 let histFeatures = [];
-let countryData = null;
+let currentSnapYear = null;
+
+// ======================================================================
+//  SNAPSHOT CONFIG — map years to historical GeoJSON
+// ======================================================================
+const SNAPSHOTS = [
+  {year:1492, url:"https://raw.githubusercontent.com/aourednik/historical-basemaps/master/geojson/world_1492.geojson"},
+  {year:1500, url:"https://raw.githubusercontent.com/aourednik/historical-basemaps/master/geojson/world_1500.geojson"},
+  {year:1530, url:"https://raw.githubusercontent.com/aourednik/historical-basemaps/master/geojson/world_1530.geojson"},
+  {year:1600, url:"https://raw.githubusercontent.com/aourednik/historical-basemaps/master/geojson/world_1600.geojson"},
+];
+
+// Which snapshot to use for a given year
+function snapForYear(y){
+  if(y<1500) return 1492;
+  if(y<1530) return 1500;
+  if(y<1600) return 1530;
+  return 1600;
+}
+
+// Cached GeoJSON data per snapshot
+const snapCache = {};
 
 function era(y){
   if(y<1492)return"AGE OF DISCOVERY";if(y<1517)return"RENAISSANCE";if(y<1555)return"REFORMATION";return"EARLY MODERN";
@@ -303,7 +367,7 @@ function resize(){const W=mc.clientWidth,H=mc.clientHeight;return{W,H,proj:d3.ge
 let {W,H,proj}=resize();
 const pf=d3.geoPath().projection(proj);
 const svg=d3.select('#ms').attr('width',W).attr('height',H);
-const gO=svg.append('g'),gG=svg.append('g'),gR=svg.append('g'),gL=svg.append('g'),gC=svg.append('g'),gM=svg.append('g'),gX=svg.append('g');
+const gO=svg.append('g'),gG=svg.append('g'),gL=svg.append('g'),gC=svg.append('g'),gM=svg.append('g'),gX=svg.append('g');
 
 gO.append('rect').attr('width',W).attr('height',H).attr('class','ocean');
 gG.append('path').datum(d3.geoGraticule().step([30,30])).attr('class','grat').attr('d',pf);
@@ -313,59 +377,111 @@ const zoom=d3.zoom().scaleExtent([1,8]).translateExtent([[-W*2,-H*2],[W*2,H*2]])
   .on('zoom',e=>{
     const t = e.transform;
     gL.attr('transform',t);gC.attr('transform',t);
-    gR.attr('transform',t);gM.attr('transform',t);gX.attr('transform',t);
+    gM.attr('transform',t);gX.attr('transform',t);
   });
 svg.call(zoom);
-// Enable hardware-accelerated transforms
-[gL,gC,gR,gM,gX].forEach(g=>g.style('will-change','transform'));
+[gL,gC,gM,gX].forEach(g=>g.style('will-change','transform'));
 
-// Load 50m land for terrain basemap
-d3.json('https://unpkg.com/world-atlas@2.0.2/land-50m.json').then(d=>{
-  countryData = topojson.feature(d, d.objects.land);
-  gL.selectAll('path').data(countryData.features).join('path').attr('d',pf)
-    .attr('fill','#1a1a28').attr('stroke','none');
-  loadHistorical();
-}).catch(()=>{
-  // Fallback: just load historical directly
-  loadHistorical();
-});
-
-// Load historical GeoJSON (world_1492 covers 1453-1492)
-function loadHistorical(){
-  const url = 'https://raw.githubusercontent.com/aourednik/historical-basemaps/master/geojson/world_1492.geojson';
-  d3.json(url).then(data=>{
-    histFeatures = data.features;
-    drawHistorical();
-    go(0);
-  }).catch(e=>{
-    console.error('Failed to load historical data:', e);
+// ======================================================================
+//  LOAD SNAPSHOTS
+// ======================================================================
+function loadAllSnapshots(callback){
+  let loaded=0;
+  SNAPSHOTS.forEach(s=>{
+    d3.json(s.url).then(data=>{
+      snapCache[s.year]=data.features;
+      loaded++;
+      if(loaded===SNAPSHOTS.length) callback();
+    }).catch(e=>{
+      console.error('Failed to load snapshot', s.year, e);
+      loaded++;
+      if(loaded===SNAPSHOTS.length) callback();
+    });
   });
 }
 
-function drawHistorical(){
-  // Filter: only named entities (much faster, reduces from 1946 to ~400)
-  const filtered = histFeatures.filter(d=>{
+// Load 50m land for terrain basemap
+d3.json('https://unpkg.com/world-atlas@2.0.2/land-50m.json').then(d=>{
+  const landData = topojson.feature(d, d.objects.land);
+  gL.selectAll('path').data(landData.features).join('path').attr('d',pf)
+    .attr('fill','#1a1a28').attr('stroke','none');
+  loadAllSnapshots(()=>{
+    go(0);
+  });
+});
+
+// ======================================================================
+//  DRAW HISTORICAL DATA FOR A GIVEN SNAPSHOT
+// ======================================================================
+function drawSnapshot(snapYear){
+  const features = snapCache[snapYear];
+  if(!features) return;
+
+  currentSnapYear = snapYear;
+
+  // Clear everything
+  gC.selectAll('*').remove();
+
+  // Filter: only named entities
+  const filtered = features.filter(d=>{
     const p = d.properties;
     return p.NAME || p.SUBJECTO;
   });
 
-  gC.selectAll('*').remove();
+  // Track which factions have territory for label placement
+  const factionFeatures = {};
 
-  gC.selectAll('path').data(filtered).join('path').attr('d',pf)
-    .attr('class','land')
+  gC.selectAll('path').data(filtered).join('path')
+    .attr('d',pf)
+    .attr('class',d=>{
+      const fid=getFaction(d);
+      return 'land'+(fid==='hre'?' hre':'');
+    })
     .attr('fill',d=>getFill(d))
     .attr('stroke',d=>getStroke(d))
     .on('click',(event,d)=>onClick(d));
 
+  // Track faction territories
+  filtered.forEach(d=>{
+    const fid=getFaction(d);
+    if(fid!=='neutral'){
+      if(!factionFeatures[fid]) factionFeatures[fid]=[];
+      factionFeatures[fid].push(d);
+    }
+  });
+
+  // HRE: draw dashed border polygon around the confederation
+  const hreFeatures = filtered.filter(d=>getFaction(d)==='hre');
+  if(hreFeatures.length>0){
+    const hreMerged = {type:"FeatureCollection",features:hreFeatures};
+    // Use a union-like approach: just draw each HRE polygon with a dashed stroke overlay
+    gC.selectAll('.hre').each(function(d){
+      // Draw a dashed border on top of each HRE territory
+      const path = d3.select(this);
+      // Clone the path's outline in dashed style
+      const node = path.node();
+      if(node){
+        const clone = node.cloneNode(true);
+        clone.setAttribute('fill','none');
+        clone.setAttribute('stroke','#7a6620');
+        clone.setAttribute('stroke-width','0.8');
+        clone.setAttribute('stroke-dasharray','4,3');
+        clone.setAttribute('opacity','0.6');
+        clone.setAttribute('pointer-events','none');
+        node.parentNode.insertBefore(clone, node.nextSibling);
+      }
+    });
+  }
+
   // Labels
   const centroids = {};
-  histFeatures.forEach(d=>{
+  features.forEach(d=>{
     try{const c=d3.geoPath().projection(proj).centroid(d);if(c&&isFinite(c[0])&&isFinite(c[1]))centroids[d.properties.NAME||'x']=c;}catch(e){}
   });
 
-  // Get unique faction territories, label by faction centroid
+  // Faction labels
   const factionCentroids = {};
-  histFeatures.forEach(d=>{
+  features.forEach(d=>{
     const p = d.properties;
     const name = p.SUBJECTO || p.NAME;
     const fid = ENT[name];
@@ -383,14 +499,22 @@ function drawHistorical(){
     const x=fc.cx/fc.count, y=fc.cy/fc.count;
     const txt = fc.name;
     const tw = txt.length*7+8;
-    gC.append('rect').attr('class','clabel-bg').attr('x',x-tw/2-2).attr('y',y-9).attr('width',tw+4).attr('height',18);
-    gC.append('text').attr('class','clabel').attr('x',x).attr('y',y+4).text(txt);
+    const isHre = fid==='hre';
+    gC.append('rect').attr('class',isHre?'hre-bg':'clabel-bg')
+      .attr('x',x-tw/2-2).attr('y',y-9).attr('width',tw+4).attr('height',18);
+    const txtEl = gC.append('text').attr('class',isHre?'hre-label':'clabel')
+      .attr('x',x).attr('y',y+4).text(txt);
+    if(isHre){
+      gC.append('text').attr('class','hre-label')
+        .attr('x',x).attr('y',y+14)
+        .style('font-size','7px').text('(Confederation)');
+    }
   });
 
   // Cities
   CITIES.forEach(c=>{
     const p=proj([c.lo,c.la]);if(!p)return;
-    const r = Math.max(1, Math.sqrt(c.pop/10000) * 2.5);
+    const r = Math.max(1.2, Math.sqrt(c.pop/10000) * 2.5);
     gC.append('circle').attr('cx',p[0]).attr('cy',p[1]).attr('r',r).attr('class','cd');
     if(c.pop>50000){
       gC.append('text').attr('x',p[0]+r+3).attr('y',p[1]+1).attr('class','cl').text(c.n);
@@ -400,6 +524,8 @@ function drawHistorical(){
   // Continent labels
   [{n:'EUROPE',c:[15,50]},{n:'ASIA',c:[90,40]},{n:'AFRICA',c:[20,5]},{n:'AMERICA',c:[-85,15]}]
     .forEach(l=>{const p=proj(l.c);if(p)gX.append('text').attr('fill','rgba(200,192,160,0.03)').attr('font-family','Cormorant Garamond,serif').attr('font-size',13).attr('font-style','italic').attr('letter-spacing','0.3em').attr('text-anchor','middle').attr('dominant-baseline','middle').attr('pointer-events','none').text(l.n).attr('x',p[0]).attr('y',p[1])});
+
+  updateLegend();
 }
 
 // ======================================================================
@@ -414,23 +540,20 @@ function getFaction(d){
 function getFill(d){
   const fid = getFaction(d);
   const yr = yrs[curIdx];
-  
-  // Handle Spanish conquests by year
+
+  // Handle conquests by year (these override snapshot placement)
   if(fid==='aztec' && yr>=1521) return F.spain.c;
   if(fid==='inca' && yr>=1533) return F.spain.c;
   if(fid==='mamluk' && yr>=1517) return F.ottoman.c;
   if(fid==='hungary' && yr>=1526) return F.ottoman.c;
-  
+
   if(mapMode==='population'){
-    // Population mode: dark = unpopulated, bright = populated
-    // Use a base color and add city glow
     return '#1e1e2e';
   }
   if(mapMode==='religion'){
     const r = REL[fid] || 'animist';
     return REL_COLORS[r] || '#3a3a48';
   }
-  // Political mode
   if(fid==='neutral'||!F[fid]) return '#2a2a36';
   return F[fid].c;
 }
@@ -447,10 +570,44 @@ function onClick(d){
   const fid=getFaction(d);
   if(selectedCode===fid){selectedCode=null;document.getElementById('sel-info').classList.remove('show')}
   else{selectedCode=fid;
-    document.getElementById('sel-info').textContent=`📍 ${(F[fid]||{}).n||'Territory'}`;
+    const f = F[fid]||{n:'Territory'};
+    document.getElementById('sel-info').textContent=`📍 ${f.n}`;
     document.getElementById('sel-info').classList.add('show');}
   gC.selectAll('.land').attr('stroke',dd=>getStroke(dd));
   renderEvents();
+}
+
+// ======================================================================
+//  LEGEND
+// ======================================================================
+function updateLegend(){
+  const leg=document.getElementById('legend');
+  if(mapMode==='political'){
+    leg.classList.remove('show');
+    return;
+  }
+  leg.classList.add('show');
+  leg.innerHTML='';
+  
+  if(mapMode==='religion'){
+    const seen=new Set();
+    Object.entries(REL).forEach(([fid,rel])=>{
+      if(seen.has(rel))return;seen.add(rel);
+      const f=document.createElement('div');f.className='leg-item';
+      f.innerHTML=`<span class="leg-swatch" style="background:${REL_COLORS[rel]}"></span>${REL_NAMES[rel]||rel}`;
+      leg.appendChild(f);
+    });
+  }
+  
+  if(mapMode==='population'){
+    const sizes=[{label:'Very Large (>300k)',pop:400000},{label:'Large (150-300k)',pop:200000},{label:'Medium (50-150k)',pop:80000},{label:'Small (<50k)',pop:15000}];
+    sizes.forEach(s=>{
+      const f=document.createElement('div');f.className='leg-item';
+      const r=Math.max(1.2,Math.sqrt(s.pop/10000)*2.5);
+      f.innerHTML=`<span class="leg-dot" style="width:${Math.max(3,r*2)}px;height:${Math.max(3,r*2)}px;border-radius:50%;display:inline-block;background:#e8d8a0;opacity:0.5"></span><span style="color:rgba(200,192,160,0.4);font-size:7px">${s.label}</span>`;
+      leg.appendChild(f);
+    });
+  }
 }
 
 // ======================================================================
@@ -459,11 +616,22 @@ function onClick(d){
 function go(i){
   if(i<0||i>=yrs.length)return;
   curIdx=i;const yr=yrs[i];
-
-  // Update fills for year-sensitive conquests
-  gC.selectAll('.land').transition().duration(300).ease(d3.easeQuadInOut)
-    .attr('fill',d=>getFill(d))
-    .attr('stroke',d=>getStroke(d));
+  
+  // Check if we need to switch snapshot
+  const targetSnap = snapForYear(yr);
+  if(targetSnap !== currentSnapYear && snapCache[targetSnap]){
+    // Snapshot changed — redraw everything with new borders
+    drawSnapshot(targetSnap);
+    // Re-render selection highlight
+    if(selectedCode){
+      gC.selectAll('.land').attr('stroke',dd=>getStroke(dd));
+    }
+  } else if(targetSnap === currentSnapYear) {
+    // Same snapshot — just update colors for conquests
+    gC.selectAll('.land').transition().duration(300).ease(d3.easeQuadInOut)
+      .attr('fill',d=>getFill(d))
+      .attr('stroke',d=>getStroke(d));
+  }
 
   document.getElementById('yt').textContent=yr;
   document.getElementById('era').textContent=era(yr);
@@ -505,10 +673,6 @@ function renderEvents(){
   visible.forEach(ev=>{
     const show=filters.all||(filters.major&&ev.i===1)||filters[ev.p];
     if(!show)return;
-    if(selectedCode){
-      const ef=getFaction({properties:{SUBJECTO:null,NAME:null}}); // Can't map event to faction directly
-      // Skip country filter for now
-    }
     const active=ye.includes(ev);
     const d=document.createElement('div');
     const col=clr(ev.p);
@@ -549,6 +713,7 @@ document.querySelectorAll('[data-mode]').forEach(b=>{
     document.querySelectorAll('[data-mode]').forEach(x=>x.classList.remove('on'));
     b.classList.add('on');mapMode=b.dataset.mode;
     gC.selectAll('.land').attr('fill',d=>getFill(d)).attr('stroke',d=>getStroke(d));
+    updateLegend();
   }
 });
 document.querySelectorAll('[data-f]').forEach(b=>{
