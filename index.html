@@ -209,7 +209,7 @@ const REL_COLORS = {
   animist:"#5a6a4a",
 };
 
-// Cities with known populations
+  // Cities with known populations - SIZES FIXED
 const CITIES = [
 {n:"Constantinople",la:41.01,lo:28.98,pop:80000},
 {n:"Paris",la:48.86,lo:2.35,pop:200000},
@@ -310,8 +310,14 @@ gG.append('path').datum(d3.geoGraticule().step([30,30])).attr('class','grat').at
 gG.append('path').datum({type:'LineString',coordinates:[[-180,0],[180,0]]}).attr('class','eq').attr('d',pf);
 
 const zoom=d3.zoom().scaleExtent([1,8]).translateExtent([[-W*2,-H*2],[W*2,H*2]])
-  .on('zoom',e=>{gL.attr('transform',e.transform);gC.attr('transform',e.transform);gR.attr('transform',e.transform);gM.attr('transform',e.transform);gX.attr('transform',e.transform)});
+  .on('zoom',e=>{
+    const t = e.transform;
+    gL.attr('transform',t);gC.attr('transform',t);
+    gR.attr('transform',t);gM.attr('transform',t);gX.attr('transform',t);
+  });
 svg.call(zoom);
+// Enable hardware-accelerated transforms
+[gL,gC,gR,gM,gX].forEach(g=>g.style('will-change','transform'));
 
 // Load 50m land for terrain basemap
 d3.json('https://unpkg.com/world-atlas@2.0.2/land-50m.json').then(d=>{
@@ -337,10 +343,15 @@ function loadHistorical(){
 }
 
 function drawHistorical(){
-  // Remove old historical features
+  // Filter: only named entities (much faster, reduces from 1946 to ~400)
+  const filtered = histFeatures.filter(d=>{
+    const p = d.properties;
+    return p.NAME || p.SUBJECTO;
+  });
+
   gC.selectAll('*').remove();
 
-  gC.selectAll('path').data(histFeatures).join('path').attr('d',pf)
+  gC.selectAll('path').data(filtered).join('path').attr('d',pf)
     .attr('class','land')
     .attr('fill',d=>getFill(d))
     .attr('stroke',d=>getStroke(d))
@@ -379,7 +390,7 @@ function drawHistorical(){
   // Cities
   CITIES.forEach(c=>{
     const p=proj([c.lo,c.la]);if(!p)return;
-    const r = Math.max(1, Math.sqrt(c.pop/300));
+    const r = Math.max(1, Math.sqrt(c.pop/10000) * 2.5);
     gC.append('circle').attr('cx',p[0]).attr('cy',p[1]).attr('r',r).attr('class','cd');
     if(c.pop>50000){
       gC.append('text').attr('x',p[0]+r+3).attr('y',p[1]+1).attr('class','cl').text(c.n);
