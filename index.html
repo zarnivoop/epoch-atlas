@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Epoch Atlas — 1453–1600</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://unpkg.com/topojson-client@3"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#06060b;color:#c8c0a8;font-family:'Inter',sans-serif;overflow:hidden;height:100vh;user-select:none}
+#app{display:grid;grid-template-columns:1fr 340px;grid-template-rows:1fr 72px;height:100vh;width:100vw}
+
+/* MAP */
+#mc{position:relative;background:#040408;overflow:hidden}
+#ms{width:100%;height:100%;display:block}
+
+.ocean{fill:url(#ocean-grad)}
+.land{stroke:rgba(0,0,0,0.3);stroke-width:0.3;transition:fill 0.4s ease;cursor:pointer}
+.land:hover{stroke:rgba(240,192,96,0.5);stroke-width:0.8}
+.clabel{fill:#f0e8d0;font-family:'Cormorant Garamond',serif;font-size:13px;font-weight:700;pointer-events:none;text-anchor:middle}
+.clabel-bg{fill:rgba(6,6,10,0.6);stroke:rgba(200,192,160,0.06);stroke-width:0.3;pointer-events:none;rx:3}
+.river{fill:none;stroke:rgba(100,160,200,0.08);stroke-width:0.6;stroke-linecap:round;opacity:0.6}
+.eq{fill:none;stroke:rgba(200,192,160,0.03);stroke-width:0.4;stroke-dasharray:4,6}
+.grat{fill:none;stroke:rgba(200,192,160,0.012);stroke-width:0.3}
+.cd{fill:#e8d8a0;stroke:rgba(0,0,0,0.4);stroke-width:0.4}
+.cl{fill:rgba(232,216,160,0.5);font-family:'Cormorant Garamond',serif;font-size:7px;font-style:italic;pointer-events:none;text-shadow:0 0 6px rgba(0,0,0,0.8)}
+.mb{position:absolute;top:12px;left:12px;display:flex;gap:2px}
+.mb button{font-size:9px;padding:4px 12px;border-radius:2px;border:1px solid rgba(200,192,160,0.06);background:rgba(6,6,10,0.7);color:rgba(200,192,160,0.35);cursor:pointer;transition:all 0.15s;text-transform:uppercase;letter-spacing:0.08em;backdrop-filter:blur(4px)}
+.mb button:hover{color:rgba(200,192,160,0.6);border-color:rgba(200,192,160,0.12)}
+.mb button.on{color:#d4b870;border-color:rgba(212,184,112,0.2);background:rgba(212,184,112,0.06)}
+#sel-info{position:absolute;top:48px;left:12px;display:none;font-size:11px;font-family:'Cormorant Garamond',serif;color:#d4b870;background:rgba(6,6,10,0.75);padding:4px 12px;border-radius:2px;backdrop-filter:blur(4px);border:1px solid rgba(212,184,112,0.1)}
+#sel-info.show{display:block}
+
+/* SIDEBAR */
+#eb{background:linear-gradient(180deg,#09090f 0%,#0b0b16 100%);border-left:1px solid rgba(200,192,160,0.04);display:flex;flex-direction:column;overflow:hidden}
+#eh{padding:14px 16px 8px;border-bottom:1px solid rgba(200,192,160,0.04);flex-shrink:0}
+#eh h1{font-family:'Cormorant Garamond',serif;font-weight:700;font-size:15px;color:#e8dfc0}
+#eh .sub{font-size:8px;color:rgba(200,192,160,0.18);text-transform:uppercase;letter-spacing:0.12em;margin-top:1px}
+#filter-bar{display:flex;gap:3px;margin-top:5px;flex-wrap:wrap}
+#filter-bar .fb{font-size:7px;padding:2px 7px;border-radius:2px;border:1px solid rgba(200,192,160,0.05);background:transparent;color:rgba(200,192,160,0.25);cursor:pointer;transition:all 0.15s;text-transform:uppercase;letter-spacing:0.06em}
+#filter-bar .fb:hover{color:rgba(200,192,160,0.5);border-color:rgba(200,192,160,0.1)}
+#filter-bar .fb.on{color:#d4b870;border-color:rgba(212,184,112,0.18);background:rgba(212,184,112,0.05)}
+#el{flex:1;overflow-y:auto;padding:2px 0}
+#el::-webkit-scrollbar{width:3px}
+#el::-webkit-scrollbar-thumb{background:rgba(200,192,160,0.04);border-radius:2px}
+.ev{padding:7px 16px;border-left:2px solid transparent;transition:all 0.2s;cursor:pointer}
+.ev:hover{background:rgba(200,192,160,0.01)}
+.ev.on{border-left-color:#d4b870;background:rgba(212,184,112,0.025)}
+.ev .ey{font-family:'Cormorant Garamond',serif;font-size:12px;font-weight:700;color:#d4b870;margin-bottom:1px}
+.ev .et{font-size:11px;font-weight:500;color:#e8dfc0;line-height:1.3}
+.ev .ed{font-size:10px;color:rgba(200,192,160,0.4);line-height:1.3;margin-top:2px;display:none}
+.ev.on .ed{display:block}
+.ev .mt{display:inline-block;font-size:7px;text-transform:uppercase;letter-spacing:0.06em;padding:1px 6px;border-radius:1px;margin-top:2px;font-weight:500}
+
+/* BOTTOM */
+#tb{grid-column:1/-1;background:linear-gradient(0deg,#06060a 0%,#09090f 100%);border-top:1px solid rgba(200,192,160,0.04);padding:8px 16px;display:flex;align-items:center;gap:8px}
+.yd{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:700;color:#e8dfc0;min-width:65px;text-align:center;line-height:1}
+.yd .era{font-size:8px;font-weight:400;display:block;color:rgba(200,192,160,0.15);letter-spacing:0.15em;text-transform:uppercase}
+.cx{display:flex;gap:2px}
+.b{background:rgba(200,192,160,0.035);border:1px solid rgba(200,192,160,0.05);color:#c8c0a8;width:30px;height:30px;border-radius:2px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all 0.1s}
+.b:hover{background:rgba(200,192,160,0.06);border-color:rgba(200,192,160,0.1)}
+.b:active{transform:scale(0.95)}
+.bg{background:rgba(212,184,112,0.06);border-color:rgba(212,184,112,0.1);color:#d4b870}
+.bg:hover{background:rgba(212,184,112,0.1);border-color:rgba(212,184,112,0.18)}
+.bg.on{background:rgba(180,60,60,0.1);border-color:rgba(180,60,60,0.18);color:#c87070}
+.bs{width:auto;padding:0 7px;font-size:8px;text-transform:uppercase;letter-spacing:0.06em}
+.bs.sel{background:rgba(212,184,112,0.08);border-color:rgba(212,184,112,0.12);color:#d4b870}
+.pb{flex:1;height:2px;background:rgba(200,192,160,0.03);border-radius:1px;margin:0 6px}
+.pf{height:100%;background:rgba(212,184,112,0.22);border-radius:1px;transition:width 0.3s}
+.if{font-size:9px;color:rgba(200,192,160,0.12);min-width:55px;text-align:right;font-feature-settings:"tnum"}
+</style>
+</head>
+<body>
+
+<svg style="position:absolute;width:0;height:0">
+  <defs>
+    <radialGradient id="ocean-grad" cx="50%" cy="40%" r="80%">
+      <stop offset="0%" stop-color="#0c0c1a"/>
+      <stop offset="50%" stop-color="#080812"/>
+      <stop offset="100%" stop-color="#040408"/>
+    </radialGradient>
+    <radialGradient id="map-glow" cx="50%" cy="45%" r="70%">
+      <stop offset="0%" stop-color="#0e0e1a" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#06060b" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+</svg>
+
+<div id="app">
+  <div id="mc">
+    <div class="mb">
+      <button class="on" data-mode="political">Political</button>
+      <button data-mode="religion">Religion</button>
+      <button data-mode="population">Population</button>
+    </div>
+    <div id="sel-info"></div>
+    <svg id="ms"></svg>
+  </div>
+
+  <div id="eb">
+    <div id="eh">
+      <h1>Chronicle</h1>
+      <div class="sub">1453 · Constantinople Falls → 1600</div>
+      <div id="filter-bar">
+        <button class="fb on" data-f="all">All</button>
+        <button class="fb on" data-f="major">Major</button>
+        <button class="fb on" data-f="war">War</button>
+        <button class="fb on" data-f="politics">Politics</button>
+        <button class="fb on" data-f="discovery">Discovery</button>
+        <button class="fb on" data-f="culture">Culture</button>
+      </div>
+    </div>
+    <div id="el"></div>
+  </div>
+
+  <div id="tb">
+    <div class="cx">
+      <button class="b" id="b0">⏮</button>
+      <button class="b" id="b1">◀</button>
+      <button class="b bg" id="bp">▶</button>
+      <button class="b" id="b2">▶</button>
+      <button class="b" id="b3">⏭</button>
+    </div>
+    <div class="cx" style="gap:1px">
+      <button class="b bs sel" data-sp="1">1×</button>
+      <button class="b bs" data-sp="3">3×</button>
+      <button class="b bs" data-sp="8">8×</button>
+    </div>
+    <div class="yd"><span id="yt">1453</span><span class="era" id="era"></span></div>
+    <div class="pb"><div class="pf" id="pf"></div></div>
+    <div class="if"><span id="ec">0</span></div>
+  </div>
+</div>
+
+<script>
+// ======================================================================
+//  FACTIONS
+// ======================================================================
+const F = {
+  spain:{n:"Spain",c:"#b83838",b:"#7a2020"},
+  portugal:{n:"Portugal",c:"#1e5a1e",b:"#123812"},
+  france:{n:"France",c:"#2a48a0",b:"#1a3066"},
+  england:{n:"England",c:"#a83828",b:"#70201a"},
+  hre:{n:"Holy Roman Empire",c:"#7a6620",b:"#504410"},
+  ottoman:{n:"Ottoman Empire",c:"#1e6a38",b:"#124428"},
+  persia:{n:"Safavid Persia",c:"#207040",b:"#144828"},
+  mamluk:{n:"Mamluk Sultanate",c:"#7a4a28",b:"#502e18"},
+  russia:{n:"Russia",c:"#4840a0",b:"#2e2868"},
+  sweden:{n:"Sweden",c:"#2a5898",b:"#1a3866"},
+  poland:{n:"Poland-Lithuania",c:"#782848",b:"#4e1a2e"},
+  venice:{n:"Venice",c:"#987828",b:"#66501a"},
+  denmark:{n:"Denmark",c:"#a84828",b:"#70301a"},
+  hungary:{n:"Hungary",c:"#286828",b:"#184218"},
+  ming:{n:"Ming China",c:"#2a6898",b:"#1a4266"},
+  moghul:{n:"Mughal Empire",c:"#388838",b:"#245824"},
+  ethiopia:{n:"Ethiopia",c:"#685828",b:"#423818"},
+  songhai:{n:"Songhai Empire",c:"#786828",b:"#504418"},
+  inca:{n:"Inca Empire",c:"#783820",b:"#4e2214"},
+  aztec:{n:"Aztec Empire",c:"#985838",b:"#663820"},
+  timurid:{n:"Timurid",c:"#487848",b:"#2e4e2e"},
+  neutral:{n:"",c:"#2a2a36",b:"#1a1a24"},
+};
+
+// Historical entity → faction ID mapping
+const ENT = {
+  "Ottoman Empire":"ottoman","Ottoman":"ottoman",
+  "Spain":"spain","Crown of Aragon":"spain","Crown of Castille":"spain",
+  "Vice Royalty of New Spain":"spain","Cuba (Spain)":"spain","Hispaniola (Spain)":"spain",
+  "France":"france","Kingdom of France":"france",
+  "England":"england","England and Ireland":"england","Kingdom of England":"england",
+  "Portugal":"portugal","Kingdom of Portugal":"portugal",
+  "Holy Roman Empire":"hre",
+  "Poland":"poland","Poland-Lithuania":"poland","Poland-Llituania":"poland","Kingdom of Poland":"poland",
+  "Russia":"russia","Tsardom of Muscovy":"russia","Muscovy":"russia","Kingdom of Russia":"russia",
+  "Sweden":"sweden","Kingdom of Sweden":"sweden",
+  "Denmark-Norway":"denmark","Denmark":"denmark","Norway":"denmark",
+  "Imperial Hungary":"hungary","Hungary":"hungary","Kingdom of Hungary":"hungary",
+  "Mamluke Sultanate":"mamluk","Mamluk":"mamluk",
+  "Safavid Empire":"persia","Safavid":"persia",
+  "Ming Chinese Empire":"ming","Ming Empire":"ming",
+  "Mughal Empire":"moghul","Mughal":"moghul",
+  "Venice":"venice","Republic of Venice":"venice",
+  "Papal States":"papal",
+  "Ethiopia":"ethiopia","Ethiopian Empire":"ethiopia",
+  "Songhai":"songhai","Songhai Empire":"songhai",
+  "Inca Empire":"inca","Inca":"inca",
+  "Aztec":"neutral","Aztec Triple Alliance":"neutral",
+  "Timurid Emirates":"timurid","Timurid":"timurid",
+  "Mingin":"ming",
+  "Prussia":"russia",
+};
+
+// Religion map (entity name → religion)
+const REL = {
+  "ottoman":"muslim","mamluk":"muslim","persia":"muslim","timurid":"muslim",
+  "spain":"catholic","portugal":"catholic","france":"catholic","hre":"catholic",
+  "england":"catholic","venice":"catholic","papal":"catholic","poland":"catholic",
+  "hungary":"catholic","denmark":"catholic","sweden":"catholic",
+  "russia":"orthodox","ethiopia":"orthodox",
+  "ming":"confucian","moghul":"hindu",
+  "songhai":"animist","inca":"animist","neutral":"animist",
+};
+
+const REL_COLORS = {
+  catholic:"#4a6a9a",orthodox:"#6a5a8a",protestant:"#8a6a4a",
+  muslim:"#3a7a4a",hindu:"#b87a3a",confucian:"#5a7a7a",
+  animist:"#5a6a4a",
+};
+
+// Cities with known populations
+const CITIES = [
+{n:"Constantinople",la:41.01,lo:28.98,pop:80000},
+{n:"Paris",la:48.86,lo:2.35,pop:200000},
+{n:"London",la:51.51,lo:-0.13,pop:60000},
+{n:"Rome",la:41.90,lo:12.45,pop:55000},
+{n:"Venice",la:45.44,lo:12.32,pop:100000},
+{n:"Cairo",la:30.04,lo:31.24,pop:400000},
+{n:"Beijing",la:39.90,lo:116.40,pop:600000},
+{n:"Delhi",la:28.70,lo:77.10,pop:300000},
+{n:"Isfahan",la:32.65,lo:51.67,pop:150000},
+{n:"Madrid",la:40.42,lo:-3.70,pop:50000},
+{n:"Lisbon",la:38.72,lo:-9.14,pop:70000},
+{n:"Vienna",la:48.21,lo:16.37,pop:30000},
+{n:"Moscow",la:55.76,lo:37.62,pop:80000},
+{n:"Warsaw",la:52.23,lo:21.01,pop:30000},
+{n:"Budapest",la:47.50,lo:19.04,pop:30000},
+{n:"Tenochtitlan",la:19.43,lo:-99.13,pop:200000},
+{n:"Cusco",la:-13.16,lo:-71.93,pop:100000},
+{n:"Stockholm",la:59.33,lo:18.07,pop:10000},
+{n:"Copenhagen",la:55.68,lo:12.57,pop:20000},
+{n:"Prague",la:50.09,lo:14.42,pop:40000},
+{n:"Jerusalem",la:31.77,lo:35.22,pop:20000},
+{n:"Florence",la:43.78,lo:11.25,pop:60000},
+{n:"Krakow",la:50.06,lo:19.94,pop:20000},
+{n:"Gao",la:16.27,lo:-0.04,pop:50000},
+{n:"Kano",la:12.00,lo:8.52,pop:50000},
+{n:"Alexandria",la:31.20,lo:29.92,pop:50000},
+{n:"Genoa",la:44.41,lo:8.93,pop:60000},
+{n:"Seville",la:37.39,lo:-5.99,pop:60000},
+];
+
+// Events
+const EV = [
+{y:1453,t:"Fall of Constantinople",d:"Mehmed II captures Constantinople, ending the Byzantine Empire.",p:"war",i:1,c:"792",la:41.01,lo:28.98},
+{y:1455,t:"Gutenberg Bible Printed",d:"First major book printed with movable type.",p:"culture",i:1,c:"276",la:49.99,lo:8.27},
+{y:1469,t:"Ferdinand & Isabella Marry",d:"Marriage unites Castile and Aragon.",p:"politics",i:1,c:"724",la:40.42,lo:-3.70},
+{y:1488,t:"Dias Rounds Cape of Good Hope",d:"Portuguese explorer sails around southern Africa.",p:"discovery",i:1,c:"620",la:-34.36,lo:18.47},
+{y:1492,t:"Columbus Reaches Americas",d:"Columbus lands in the Bahamas, opening the New World.",p:"discovery",i:1,c:"724",la:24.0,lo:-74.0},
+{y:1492,t:"Reconquista Completed",d:"Granada falls, ending 780 years of Muslim rule in Iberia.",p:"war",i:1,c:"724",la:37.18,lo:-3.60},
+{y:1494,t:"Treaty of Tordesillas",d:"Spain and Portugal divide the New World.",p:"politics",i:1,c:"724",la:20.0,lo:-40.0},
+{y:1498,t:"Vasco da Gama Reaches India",d:"First European to reach India by sea.",p:"discovery",i:1,c:"620",la:11.25,lo:75.78},
+{y:1500,t:"Brazil Discovered",d:"Portuguese fleet sights the Brazilian coast.",p:"discovery",i:1,c:"076",la:-16.0,lo:-39.0},
+{y:1501,t:"Safavid Dynasty Founded",d:"Shah Ismail I establishes the Safavid Empire.",p:"politics",i:1,c:"364",la:34.0,lo:51.0},
+{y:1508,t:"Michelangelo Paints Sistine Chapel",d:"Michelangelo begins the Sistine Chapel ceiling.",p:"culture",i:1,c:"380",la:41.90,lo:12.45},
+{y:1517,t:"95 Theses Posted",d:"Martin Luther begins the Protestant Reformation.",p:"religion",i:1,c:"276",la:51.87,lo:12.65},
+{y:1517,t:"Ottomans Conquer Egypt",d:"Selim I takes Cairo, ending the Mamluk Sultanate.",p:"war",i:1,c:"818",la:30.04,lo:31.24},
+{y:1519,t:"Magellan Departs",d:"First circumnavigation of the Earth departs Spain.",p:"discovery",i:1,c:"724",la:36.80,lo:-6.20},
+{y:1519,t:"Cortés Lands in Mexico",d:"Hernán Cortés lands on the Mexican coast.",p:"war",i:1,c:"484",la:19.43,lo:-96.38},
+{y:1521,t:"Tenochtitlan Falls",d:"Aztec capital falls to Cortés.",p:"war",i:1,c:"484",la:19.43,lo:-99.13},
+{y:1526,t:"Battle of Mohács",d:"Ottoman victory over Hungary. King Louis II dies.",p:"war",i:1,c:"348",la:45.95,lo:18.68},
+{y:1526,t:"Babur Founds Mughal Empire",d:"Babur defeats the Delhi Sultanate at Panipat.",p:"politics",i:1,c:"586",la:29.39,lo:76.97},
+{y:1529,t:"Siege of Vienna",d:"Ottomans lay siege to Vienna.",p:"war",i:1,c:"040",la:48.21,lo:16.37},
+{y:1532,t:"Pizarro Captures Atahualpa",d:"Spanish conquistador captures the Inca emperor.",p:"war",i:1,c:"604",la:-13.16,lo:-71.93},
+{y:1534,t:"Act of Supremacy",d:"Henry VIII declares himself head of the Church of England.",p:"religion",i:1,c:"826",la:51.51,lo:-0.13},
+{y:1543,t:"Copernicus Publishes Theory",d:"De revolutionibus proposes Sun-centered universe.",p:"culture",i:1,c:"276",la:54.09,lo:19.44},
+{y:1547,t:"Ivan the Terrible Crowned Tsar",d:"Ivan IV becomes the first Russian Tsar.",p:"politics",i:1,c:"643",la:55.76,lo:37.62},
+{y:1555,t:"Peace of Augsburg",d:"Lutheranism officially recognized in the Holy Roman Empire.",p:"politics",i:1,c:"276",la:48.37,lo:10.90},
+{y:1556,t:"Akbar the Great Ascends",d:"Akbar becomes Mughal Emperor, beginning the golden age.",p:"politics",i:1,c:"586",la:31.48,lo:74.36},
+{y:1558,t:"Elizabeth I Crowned",d:"Elizabeth I begins the Elizabethan Era.",p:"politics",i:1,c:"826",la:51.51,lo:-0.13},
+{y:1568,t:"Eighty Years' War Begins",d:"Dutch Revolt against Spanish rule.",p:"war",i:1,c:"528",la:52.08,lo:4.31},
+{y:1571,t:"Battle of Lepanto",d:"Holy League defeats the Ottoman fleet.",p:"war",i:1,c:"300",la:38.19,lo:21.25},
+{y:1572,t:"St. Bartholomew's Day Massacre",d:"Thousands of Huguenots killed in Paris.",p:"religion",i:1,c:"250",la:48.86,lo:2.35},
+{y:1580,t:"Iberian Union",d:"Spain inherits Portugal, uniting Iberia.",p:"politics",i:1,c:"620",la:38.72,lo:-9.14},
+{y:1588,t:"Spanish Armada Defeated",d:"English navy defeats the Armada.",p:"war",i:1,c:"826",la:50.0,lo:-3.0},
+{y:1598,t:"Edict of Nantes",d:"Henry IV grants toleration to Huguenots.",p:"politics",i:1,c:"250",la:47.22,lo:-1.55},
+{y:1600,t:"East India Company Chartered",d:"British East India Company founded.",p:"politics",i:1,c:"826",la:51.51,lo:-0.13},
+{y:1600,t:"Battle of Sekigahara",d:"Tokugawa Ieyasu unifies Japan.",p:"war",i:1,c:"392",la:35.37,lo:136.46},
+];
+
+const evByY = {}; EV.forEach(e=>{if(!evByY[e.y])evByY[e.y]=[];evByY[e.y].push(e)});
+const yrs = []; for(let y=1453;y<=1600;y++) yrs.push(y);
+
+// State
+let curIdx = 0, playing = false, pi = null, spd = 1;
+let mapMode = "political";
+let selectedCode = null;
+let filters = {all:true,major:true,war:true,politics:true,discovery:true,culture:true,religion:true};
+let histFeatures = [];
+let countryData = null;
+
+function era(y){
+  if(y<1492)return"AGE OF DISCOVERY";if(y<1517)return"RENAISSANCE";if(y<1555)return"REFORMATION";return"EARLY MODERN";
+}
+function clr(t){return{war:"#c87070",culture:"#70a8c8",discovery:"#70c8a0",politics:"#c8a860",religion:"#a880c8"}[t]||"#c8c0a8"}
+
+// ======================================================================
+//  D3 MAP
+// ======================================================================
+const mc=document.getElementById('mc');
+function resize(){const W=mc.clientWidth,H=mc.clientHeight;return{W,H,proj:d3.geoNaturalEarth1().scale(H*0.85).translate([W/2,H/2+20]).rotate([-8,0])}}
+let {W,H,proj}=resize();
+const pf=d3.geoPath().projection(proj);
+const svg=d3.select('#ms').attr('width',W).attr('height',H);
+const gO=svg.append('g'),gG=svg.append('g'),gR=svg.append('g'),gL=svg.append('g'),gC=svg.append('g'),gM=svg.append('g'),gX=svg.append('g');
+
+gO.append('rect').attr('width',W).attr('height',H).attr('class','ocean');
+gG.append('path').datum(d3.geoGraticule().step([30,30])).attr('class','grat').attr('d',pf);
+gG.append('path').datum({type:'LineString',coordinates:[[-180,0],[180,0]]}).attr('class','eq').attr('d',pf);
+
+const zoom=d3.zoom().scaleExtent([1,8]).translateExtent([[-W*2,-H*2],[W*2,H*2]])
+  .on('zoom',e=>{gL.attr('transform',e.transform);gC.attr('transform',e.transform);gR.attr('transform',e.transform);gM.attr('transform',e.transform);gX.attr('transform',e.transform)});
+svg.call(zoom);
+
+// Load 50m land for terrain basemap
+d3.json('https://unpkg.com/world-atlas@2.0.2/land-50m.json').then(d=>{
+  countryData = topojson.feature(d, d.objects.land);
+  gL.selectAll('path').data(countryData.features).join('path').attr('d',pf)
+    .attr('fill','#1a1a28').attr('stroke','none');
+  loadHistorical();
+}).catch(()=>{
+  // Fallback: just load historical directly
+  loadHistorical();
+});
+
+// Load historical GeoJSON (world_1492 covers 1453-1492)
+function loadHistorical(){
+  const url = 'https://raw.githubusercontent.com/aourednik/historical-basemaps/master/geojson/world_1492.geojson';
+  d3.json(url).then(data=>{
+    histFeatures = data.features;
+    drawHistorical();
+    go(0);
+  }).catch(e=>{
+    console.error('Failed to load historical data:', e);
+  });
+}
+
+function drawHistorical(){
+  // Remove old historical features
+  gC.selectAll('*').remove();
+
+  gC.selectAll('path').data(histFeatures).join('path').attr('d',pf)
+    .attr('class','land')
+    .attr('fill',d=>getFill(d))
+    .attr('stroke',d=>getStroke(d))
+    .on('click',(event,d)=>onClick(d));
+
+  // Labels
+  const centroids = {};
+  histFeatures.forEach(d=>{
+    try{const c=d3.geoPath().projection(proj).centroid(d);if(c&&isFinite(c[0])&&isFinite(c[1]))centroids[d.properties.NAME||'x']=c;}catch(e){}
+  });
+
+  // Get unique faction territories, label by faction centroid
+  const factionCentroids = {};
+  histFeatures.forEach(d=>{
+    const p = d.properties;
+    const name = p.SUBJECTO || p.NAME;
+    const fid = ENT[name];
+    if(!fid||fid==='neutral')return;
+    if(!factionCentroids[fid])factionCentroids[fid]={count:0,cx:0,cy:0,name:(F[fid]||{}).n||name};
+    if(centroids[p.NAME]){
+      factionCentroids[fid].count++;
+      factionCentroids[fid].cx+=centroids[p.NAME][0];
+      factionCentroids[fid].cy+=centroids[p.NAME][1];
+    }
+  });
+
+  Object.entries(factionCentroids).forEach(([fid,fc])=>{
+    if(fc.count<1)return;
+    const x=fc.cx/fc.count, y=fc.cy/fc.count;
+    const txt = fc.name;
+    const tw = txt.length*7+8;
+    gC.append('rect').attr('class','clabel-bg').attr('x',x-tw/2-2).attr('y',y-9).attr('width',tw+4).attr('height',18);
+    gC.append('text').attr('class','clabel').attr('x',x).attr('y',y+4).text(txt);
+  });
+
+  // Cities
+  CITIES.forEach(c=>{
+    const p=proj([c.lo,c.la]);if(!p)return;
+    const r = Math.max(1, Math.sqrt(c.pop/300));
+    gC.append('circle').attr('cx',p[0]).attr('cy',p[1]).attr('r',r).attr('class','cd');
+    if(c.pop>50000){
+      gC.append('text').attr('x',p[0]+r+3).attr('y',p[1]+1).attr('class','cl').text(c.n);
+    }
+  });
+
+  // Continent labels
+  [{n:'EUROPE',c:[15,50]},{n:'ASIA',c:[90,40]},{n:'AFRICA',c:[20,5]},{n:'AMERICA',c:[-85,15]}]
+    .forEach(l=>{const p=proj(l.c);if(p)gX.append('text').attr('fill','rgba(200,192,160,0.03)').attr('font-family','Cormorant Garamond,serif').attr('font-size',13).attr('font-style','italic').attr('letter-spacing','0.3em').attr('text-anchor','middle').attr('dominant-baseline','middle').attr('pointer-events','none').text(l.n).attr('x',p[0]).attr('y',p[1])});
+}
+
+// ======================================================================
+//  FILL / STROKE LOGIC
+// ======================================================================
+function getFaction(d){
+  const p = d.properties;
+  const name = p.SUBJECTO || p.NAME;
+  return ENT[name] || 'neutral';
+}
+
+function getFill(d){
+  const fid = getFaction(d);
+  const yr = yrs[curIdx];
+  
+  // Handle Spanish conquests by year
+  if(fid==='aztec' && yr>=1521) return F.spain.c;
+  if(fid==='inca' && yr>=1533) return F.spain.c;
+  if(fid==='mamluk' && yr>=1517) return F.ottoman.c;
+  if(fid==='hungary' && yr>=1526) return F.ottoman.c;
+  
+  if(mapMode==='population'){
+    // Population mode: dark = unpopulated, bright = populated
+    // Use a base color and add city glow
+    return '#1e1e2e';
+  }
+  if(mapMode==='religion'){
+    const r = REL[fid] || 'animist';
+    return REL_COLORS[r] || '#3a3a48';
+  }
+  // Political mode
+  if(fid==='neutral'||!F[fid]) return '#2a2a36';
+  return F[fid].c;
+}
+
+function getStroke(d){
+  const fid=getFaction(d);
+  if(mapMode!=='political') return 'rgba(0,0,0,0.15)';
+  if(selectedCode===fid) return '#e0c060';
+  if(fid==='neutral'||!F[fid]) return 'rgba(0,0,0,0.1)';
+  return F[fid].b;
+}
+
+function onClick(d){
+  const fid=getFaction(d);
+  if(selectedCode===fid){selectedCode=null;document.getElementById('sel-info').classList.remove('show')}
+  else{selectedCode=fid;
+    document.getElementById('sel-info').textContent=`📍 ${(F[fid]||{}).n||'Territory'}`;
+    document.getElementById('sel-info').classList.add('show');}
+  gC.selectAll('.land').attr('stroke',dd=>getStroke(dd));
+  renderEvents();
+}
+
+// ======================================================================
+//  YEAR UPDATE
+// ======================================================================
+function go(i){
+  if(i<0||i>=yrs.length)return;
+  curIdx=i;const yr=yrs[i];
+
+  // Update fills for year-sensitive conquests
+  gC.selectAll('.land').transition().duration(300).ease(d3.easeQuadInOut)
+    .attr('fill',d=>getFill(d))
+    .attr('stroke',d=>getStroke(d));
+
+  document.getElementById('yt').textContent=yr;
+  document.getElementById('era').textContent=era(yr);
+  document.getElementById('pf').style.width=((i+1)/yrs.length*100)+'%';
+
+  const ye=evByY[yr]||[];
+  let ae=0;Object.keys(evByY).forEach(k=>{if(parseInt(k)<=yr)ae+=evByY[k].length});
+  document.getElementById('ec').textContent=ae;
+
+  // Event markers
+  gM.selectAll('*').remove();
+  ye.forEach(ev=>{
+    const p=proj([ev.lo,ev.la]);if(!p)return;
+    const col=clr(ev.p);
+    const g=gM.append('g').attr('transform',`translate(${p[0]},${p[1]})`);
+    if(ev.i===1){
+      g.append('circle').attr('r',3).attr('fill','none').attr('stroke',col).attr('stroke-width',1).style('opacity',0.4)
+        .transition().duration(2000).ease(d3.easeQuadOut).attr('r',16).style('opacity',0).remove();
+    }
+    g.append('circle').attr('r',ev.i===1?3:2).attr('fill',col).attr('stroke','rgba(255,255,255,0.3)').attr('stroke-width',0.3);
+    if(ev.i===1){
+      const lw=ev.t.length*5+10;
+      g.append('rect').attr('x',-lw/2).attr('y',-17).attr('width',lw).attr('height',12).attr('rx',2).attr('fill','rgba(6,6,10,0.85)').attr('stroke',col).attr('stroke-width',0.3);
+      g.append('text').attr('x',0).attr('y',-9).attr('text-anchor','middle').attr('fill','#e8dfc0').attr('font-size',8).attr('font-family','Inter').attr('font-weight',500).text(ev.t);
+    }
+  });
+
+  renderEvents();
+}
+
+// ======================================================================
+//  RENDER EVENTS
+// ======================================================================
+function renderEvents(){
+  const el=document.getElementById('el');el.innerHTML='';
+  const yr=yrs[curIdx];
+  const ye=evByY[yr]||[];
+  const visible=EV.filter(e=>e.y<=yr).reverse();
+  visible.forEach(ev=>{
+    const show=filters.all||(filters.major&&ev.i===1)||filters[ev.p];
+    if(!show)return;
+    if(selectedCode){
+      const ef=getFaction({properties:{SUBJECTO:null,NAME:null}}); // Can't map event to faction directly
+      // Skip country filter for now
+    }
+    const active=ye.includes(ev);
+    const d=document.createElement('div');
+    const col=clr(ev.p);
+    d.className=`ev ${active?'on':''}`;
+    d.innerHTML=`<div class="ey">${ev.y}</div><div class="et">${ev.t}</div><div class="ed">${ev.d}</div><span class="mt" style="background:${col}18;color:${col}">${ev.p.toUpperCase()}</span>`;
+    if(active)setTimeout(()=>d.scrollIntoView({behavior:'smooth',block:'center'}),150);
+    el.appendChild(d);
+  });
+}
+
+// ======================================================================
+//  CONTROLS
+// ======================================================================
+function nav(i){if(i>=0&&i<yrs.length){stop();go(i)}}
+document.getElementById('b0').onclick=()=>nav(0);
+document.getElementById('b1').onclick=()=>nav(curIdx-1);
+document.getElementById('b2').onclick=()=>nav(curIdx+1);
+document.getElementById('b3').onclick=()=>nav(yrs.length-1);
+document.getElementById('bp').onclick=()=>playing?stop():start();
+function start(){
+  if(curIdx>=yrs.length-1)go(0);
+  playing=true;document.getElementById('bp').textContent='■';document.getElementById('bp').classList.add('on');
+  pi=setInterval(()=>{if(curIdx<yrs.length-1)go(curIdx+1);else stop();},Math.max(300,1800/spd));
+}
+function stop(){
+  playing=false;if(pi){clearInterval(pi);pi=null}
+  document.getElementById('bp').textContent='▶';document.getElementById('bp').classList.remove('on');
+}
+document.querySelectorAll('[data-sp]').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('[data-sp]').forEach(x=>x.classList.remove('sel'));
+    b.classList.add('sel');spd=parseInt(b.dataset.sp);
+    if(playing){stop();start();}
+  }
+});
+document.querySelectorAll('[data-mode]').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('[data-mode]').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');mapMode=b.dataset.mode;
+    gC.selectAll('.land').attr('fill',d=>getFill(d)).attr('stroke',d=>getStroke(d));
+  }
+});
+document.querySelectorAll('[data-f]').forEach(b=>{
+  b.onclick=()=>{
+    filters[b.dataset.f]=!filters[b.dataset.f];b.classList.toggle('on');renderEvents();
+  }
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'){e.preventDefault();nav(curIdx+1)}
+  else if(e.key==='ArrowLeft'){e.preventDefault();nav(curIdx-1)}
+  else if(e.key===' '){e.preventDefault();document.getElementById('bp').click()}
+});
+</script>
+</body>
+</html>
